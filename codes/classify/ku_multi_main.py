@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument("--data_path", type=str, default="D:\Data\KU_Dataset\BCIdataset\DB_mat\multiviewPython",
                         help="Path to dataset")
     parser.add_argument("--test_sub", type=int, default=0, help="Index of test subject")
+    parser.add_argument("--out_path", type=str, help="path to output folder")
     parser.add_argument("--dataset_idx", choices=[0, 1], type=int, default=0, help="0: KU Binary, 1: KU Multi")
     parser.add_argument("--classes", choices=[0, 1, 2], type=int, default=0, help="0: Forward vs Backward, 1:Cylindrical vs Lumbrical, 2: Forward vs Cylindrical")
     parser.add_argument("--move_type", choices=[0, 1], type=int, default=0, help="for KU Multi data only; 0: MI, 1: realMove")
@@ -102,7 +103,8 @@ def build_config(args):
 
     # Output folder:
     # Lets store all the outputs of the given run in folder.
-    config['outPath'] = os.path.join(toolboxPath, 'output')
+    # config['outPath'] = os.path.join(toolboxPath, 'output')
+    config["outPath"] = args.out_path
 
     # Network initialization:
     config['pathNetInitState'] = os.path.join(masterPath, 'netInitModels', config['pathNetInitState'] + '.pth')
