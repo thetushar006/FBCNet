@@ -4,3 +4,7 @@ output_0/
 output_0/*
 .idea/
 .idea/*
+codes/netInitModels/*
+codes/netInitModels/
+codes/centralRepo/__pycache__/
+codes/centralRepo/__pycache__/*

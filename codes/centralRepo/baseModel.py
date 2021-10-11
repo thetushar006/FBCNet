@@ -193,11 +193,11 @@ class baseModel():
         pred, act, l = self.predict(trainData, sampler=sampler, lossFn=lossFn)
         trainResultsBest = self.calculateResults(pred, act, classes=classes)
         trainResultsBest['loss'] = l
-        pred, act, l = self.predict(valData, sampler=sampler, lossFn=lossFn)
-        valResultsBest = self.calculateResults(pred, act, classes=classes)
-        valResultsBest['loss'] = l
+        # pred, act, l = self.predict(valData, sampler=sampler, lossFn=lossFn)
+        # valResultsBest = self.calculateResults(pred, act, classes=classes)
+        # valResultsBest['loss'] = l
         expDetail['results']['trainBest'] = trainResultsBest
-        expDetail['results']['valBest'] = valResultsBest
+        # expDetail['results']['valBest'] = valResultsBest
 
         # if test data is present then get the results for the test data.
         if testData is not None:
@@ -211,28 +211,35 @@ class baseModel():
         print('________________________________________________')
         print("\n Train Results: ")
         print(expDetail['results']['trainBest'])
-        print('\n Validation Results: ')
-        print(expDetail['results']['valBest'])
+        # print('\n Validation Results: ')
+        # print(expDetail['results']['valBest'])
         if testData is not None:
             print('\n Test Results: ')
             print(expDetail['results']['test'])
 
         # save the results
-        if self.resultsSavePath is not None:
-
-            # Store the graphs
-            self.plotLoss(trainResults['trainLoss'], trainResults['valLoss'],
-                          savePath=os.path.join(self.resultsSavePath,
-                                                'exp-'+str(expNo)+'-loss.png'))
-            self.plotAcc(trainResults['trainResults']['acc'],
-                         trainResults['valResults']['acc'],
-                         savePath=os.path.join(self.resultsSavePath,
-                                               'exp-'+str(expNo)+'-acc.png'))
-
-            # Store the data in experimental details.
-            with open(os.path.join(self.resultsSavePath, 'expResults' +
-                                   str(expNo)+'.dat'), 'wb') as fp:
-                pickle.dump(expDetail, fp)
+        # if self.resultsSavePath is not None:
+        #
+        #     # Store the graphs
+        #     self.plotLoss(trainResults['trainLoss'], savePath=os.path.join(self.resultsSavePath,
+        #                                         'exp-' + str(expNo) + '-loss.png'))
+        #
+        #     self.plotAcc(trainResults['trainResults']['acc'],
+        #                  savePath=os.path.join(self.resultsSavePath,
+        #                                        'exp-' + str(expNo) + '-acc.png'))
+        #
+        #     # self.plotLoss(trainResults['trainLoss'], trainResults['valLoss'],
+        #     #               savePath=os.path.join(self.resultsSavePath,
+        #     #                                     'exp-'+str(expNo)+'-loss.png'))
+        #     # self.plotAcc(trainResults['trainResults']['acc'],
+        #     #              trainResults['valResults']['acc'],
+        #     #              savePath=os.path.join(self.resultsSavePath,
+        #     #                                    'exp-'+str(expNo)+'-acc.png'))
+        #
+        #     # Store the data in experimental details.
+        #     with open(os.path.join(self.resultsSavePath, 'expResults' +
+        #                            str(expNo)+'.dat'), 'wb') as fp:
+        #         pickle.dump(expDetail, fp)
 
         # Increment the expNo
         self.expDetails.append(expDetail)
@@ -320,61 +327,68 @@ class baseModel():
         monitors = {'epoch': 0, 'valLoss': 10000, 'valInacc': 1}
         doStop = False
 
-        while not doStop:
+        # while not doStop:
+        for i in range(200):
             # train the epoch.
             loss.append(self.trainOneEpoch(trainData, lossFn, self.optimizer, sampler = sampler))
 
             # evaluate the training and validation accuracy.
-            pred, act, l = self.predict(trainData, sampler = sampler, lossFn=lossFn)
-            trainResults.append(self.calculateResults(pred, act, classes=classes))
-            trainLoss.append(l)
-            monitors['trainLoss'] = l
-            monitors['trainInacc'] = 1 - trainResults[-1]['acc']
-            pred, act, l = self.predict(valData, sampler = sampler, lossFn=lossFn)
-            valResults.append(self.calculateResults(pred, act, classes=classes))
-            valLoss.append(l)
-            monitors['valLoss'] = l
-            monitors['valInacc'] = 1 - valResults[-1]['acc']
+            if i == 0 or (i + 1) % 10 == 0:
+                pred, act, l = self.predict(trainData, sampler = sampler, lossFn=lossFn)
+                trainResults.append(self.calculateResults(pred, act, classes=classes))
+                trainLoss.append(l)
+                monitors['trainLoss'] = l
+                monitors['trainInacc'] = 1 - trainResults[-1]['acc']
+
+            # if valData:
+            #     pred, act, l = self.predict(valData, sampler = sampler, lossFn=lossFn)
+            #     valResults.append(self.calculateResults(pred, act, classes=classes))
+            #     valLoss.append(l)
+            #     monitors['valLoss'] = l
+            #     monitors['valInacc'] = 1 - valResults[-1]['acc']
 
             # print the epoch info
             print("\t \t Epoch "+ str(monitors['epoch']+1))
-            print("Train loss = "+ "%.3f" % trainLoss[-1] + " Train Acc = "+
-                  "%.3f" % trainResults[-1]['acc']+
-                  ' Val Acc = '+ "%.3f" % valResults[-1]['acc'] +
-                  " Val loss = "+ "%.3f" % valLoss[-1])
-
-            if loadBestModel:
-                if monitors[bestVarToCheck] < bestValue:
-                    bestValue = monitors[bestVarToCheck]
-                    bestNet = copy.deepcopy(self.net.state_dict())
-                    bestOptimizerState = copy.deepcopy(self.optimizer.state_dict())
+            if i == 0 or (i + 1) % 10 == 0:
+                print("Train loss = "+ "%.3f" % trainLoss[-1] + " Train Acc = "+
+                      "%.3f" % trainResults[-1]['acc'])
+            # if valData:
+            #     print(' Val Acc = '+ "%.3f" % valResults[-1]['acc'] +
+            #           " Val loss = "+ "%.3f" % valLoss[-1])
+            #
+            # if valData:
+            #     if loadBestModel:
+            #         if monitors[bestVarToCheck] < bestValue:
+            #             bestValue = monitors[bestVarToCheck]
+            #             bestNet = copy.deepcopy(self.net.state_dict())
+            #             bestOptimizerState = copy.deepcopy(self.optimizer.state_dict())
 
             #Check if to stop
-            doStop = stopCondition(monitors)
+            # doStop = stopCondition(monitors)
 
             #Check if we want to continue the training after the first stop:
-            if doStop:
-                # first load the best model
-                if loadBestModel and not earlyStopReached:
-                    self.net.load_state_dict(bestNet)
-                    self.optimizer.load_state_dict(bestOptimizerState)
-
-                # Now check if  we should continue training:
-                if continueAfterEarlystop:
-                    if not earlyStopReached:
-                        doStop = False
-                        earlyStopReached = True
-                        print('Early stop reached now continuing with full set')
-                        # Combine the train and validation dataset
-                        trainData.combineDataset(valData)
-
-                        # define new stop criteria which is the training loss.
-                        monitors['epoch'] = 0
-                        modifiedStop = {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 600, 'varName' : 'epoch'}},
-                                               'c2': {'LessThan': {'minValue' : monitors['trainLoss'], 'varName': 'valLoss'}} } }}
-                        stopCondition = stopCriteria.composeStopCriteria(**modifiedStop)
-                    else:
-                        bestNet = copy.deepcopy(self.net.state_dict())
+            # if doStop:
+            #     # first load the best model
+            #     if loadBestModel and not earlyStopReached:
+            #         self.net.load_state_dict(bestNet)
+            #         self.optimizer.load_state_dict(bestOptimizerState)
+            #
+            #     # Now check if  we should continue training:
+            #     if continueAfterEarlystop:
+            #         if not earlyStopReached:
+            #             doStop = False
+            #             earlyStopReached = True
+            #             print('Early stop reached now continuing with full set')
+            #             # Combine the train and validation dataset
+            #             trainData.combineDataset(valData)
+            #
+            #             # define new stop criteria which is the training loss.
+            #             monitors['epoch'] = 0
+            #             modifiedStop = {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 600, 'varName' : 'epoch'}},
+            #                                    'c2': {'LessThan': {'minValue' : monitors['trainLoss'], 'varName': 'valLoss'}} } }}
+            #             stopCondition = stopCriteria.composeStopCriteria(**modifiedStop)
+            #         else:
+            #             bestNet = copy.deepcopy(self.net.state_dict())
 
             # update the epoch
             monitors['epoch'] += 1
@@ -382,15 +396,16 @@ class baseModel():
 
         # Make individual list for components of trainResults and valResults
         t = {}
-        v = {}
+        # v = {}
 
         for key in trainResults[0].keys():
             t[key] = [result[key] for result in trainResults]
-            v[key] = [result[key] for result in valResults]
+            # v[key] = [result[key] for result in valResults]
 
+        return {'trainResults': t, 'trainLoss': trainLoss}
 
-        return {'trainResults': t, 'valResults': v,
-                'trainLoss': trainLoss, 'valLoss' : valLoss}
+        # return {'trainResults': t, 'valResults': v,
+        #         'trainLoss': trainLoss, 'valLoss' : valLoss}
 
     def trainOneEpoch(self, trainData, lossFn, optimizer, sampler = None):
         '''

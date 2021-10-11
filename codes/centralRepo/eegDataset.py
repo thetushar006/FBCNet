@@ -4,7 +4,7 @@
 A custom dataset to handle and load the epoched EEG files
 @author: Ravikiran Mane
 """
-
+import torch
 from torch.utils.data import Dataset
 import os
 import pickle 
@@ -42,7 +42,7 @@ class eegDataset(Dataset):
     https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
     '''
     
-    def __init__(self, dataPath, dataLabelsPath, transform = None, preloadData = False):
+    def __init__(self, dataPath, dataLabelsPath, data=None, pretransform = False, transform = None, preloadData = False):
         '''
         Initialize EEG dataset
 
@@ -63,51 +63,66 @@ class eegDataset(Dataset):
 
         '''
         
-        self.labels = []
-        self.data = []
+        self.labels = [] if not data else data['label']
+        self.data = [] if not data else data
         self.dataPath = dataPath
         self.dataLabelsPath = dataLabelsPath
         self.preloadData = preloadData
         self.transform = transform
+        self.pretransform = pretransform
         
-        # Load the labels file
-        with open(self.dataLabelsPath, "r") as f:
-            eegReader = csv.reader(f, delimiter = ',')
-            for row in eegReader:
-                self.labels.append(row)
-            
-            # remove the first header row
-            del self.labels[0]
-        
-        # convert the labels to int
-        for i, label in enumerate(self.labels):
-            self.labels[i][2] = int(self.labels[i][2])
-        
-        # if preload data is true then load all the data and apply the transforms as well
-        if self.preloadData:
-            for i, trial in enumerate(self.labels):
-                with open(os.path.join(self.dataPath,trial[1]), 'rb') as fp:
-                    d = pickle.load(fp)
-                    if self.transform:
-                        d= self.transform(d)
-                    self.data.append(d)
+        if not data:
+            # Load the labels file
+            with open(self.dataLabelsPath, "r") as f:
+                eegReader = csv.reader(f, delimiter = ',')
+                for row in eegReader:
+                    self.labels.append(row)
+
+                # remove the first header row
+                del self.labels[0]
+
+            # convert the labels to int
+            for i, label in enumerate(self.labels):
+                self.labels[i][2] = int(self.labels[i][2])
+
+            # if preload data is true then load all the data and apply the transforms as well
+            if self.preloadData:
+                for i, trial in enumerate(self.labels):
+                    with open(os.path.join(self.dataPath,trial[1]), 'rb') as fp:
+                        d = pickle.load(fp)
+                        if self.transform:
+                            d= self.transform(d)
+                        self.data.append(d)
+
+        if pretransform and transform:
+            print(f"Transforming the data before training")
+            transformed_data = torch.zeros((*data['data'].shape, 9))
+            for i, xtrial in enumerate(self.data['data']):
+                transformed_data[i] = transform(xtrial)
+
+            data['data'] = transformed_data
 
     def __len__(self):
         return len(self.labels)
     
     def __getitem__(self, idx):
         '''Load and provide the data and label'''
-        
-        if self.preloadData:
-            data  = self.data[idx]
-        
-        else:
-            with open(os.path.join(self.dataPath,self.labels[idx][1]), 'rb') as fp:
-                data = pickle.load(fp)
-                if self.transform:
-                    data = self.transform(data) 
+
+        data = self.data['data'][idx]
+        label = self.data['label'][idx]
+        if self.transform and not self.pretransform:
+            data = self.transform(data)
+
+        # if self.preloadData:
+        #     data  = self.data[idx]
+        #
+        # else:
+        #     with open(os.path.join(self.dataPath,self.labels[idx][1]), 'rb') as fp:
+        #         data = pickle.load(fp)
+        #         if self.transform:
+        #             data = self.transform(data)
                 
-        d = {'data': data['data'], 'label': data['label']}
+        d = {'data': data, 'label': label}
         
         return d
     

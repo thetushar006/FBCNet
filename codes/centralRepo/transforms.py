@@ -153,10 +153,14 @@ class filterBank(object):
     def __call__(self, data1):
 
         data = copy.deepcopy(data1)
-        d = data['data'] #single trial Nchannels x Nsamples
+        if type(data) == dict:
+            d = data['data'] #single trial Nchannels x Nsamples
+        else:
+            assert data.ndim == 2, "Single trial data required: Nchannels x Nsamples"
+            d = data
 
         # initialize output
-        out  = np.zeros([*d.shape, len(self.filtBank)])
+        out = np.zeros([*d.shape, len(self.filtBank)])
 
         # repetitively filter the data.
         for i, filtBand in enumerate(self.filtBank):
@@ -167,8 +171,12 @@ class filterBank(object):
         if len(self.filtBank) <= 1:
             out =np.squeeze(out, axis = 2)
 
-        data['data'] = torch.from_numpy(out).float() #Nchannels x Nsamples x Nbands - single trial
-        return data
+
+        #Nchannels x Nsamples x Nbands - single trial
+        if type(data) == dict:
+            data['data'] = torch.from_numpy(out).float()
+            return data
+        return torch.from_numpy(out).float()
 
 class filterBankFIR(object):
     """
@@ -255,4 +263,3 @@ class filterBankFIR(object):
 
         data['data'] = torch.from_numpy(out).float()
         return data
-

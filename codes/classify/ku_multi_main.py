@@ -14,15 +14,19 @@ from codes.centralRepo.baseModel import baseModel
 import codes.centralRepo.networks as networks
 import codes.centralRepo.transforms as transforms
 from codes.centralRepo.saveData import fetchData
+import DataLoadingUtils.LoadKUMulti as ld
+from functools import partial
 
 def get_args():
     """To get arguments passed to the script"""
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str, default="D:\Data\KU_Dataset\BCIdataset\DB_mat\multiviewPython",
                         help="Path to dataset")
-    parser.add_argument("--test_sub", type=int, help="Index of test subject")
+    parser.add_argument("--test_sub", type=int, default=0, help="Index of test subject")
     parser.add_argument("--dataset_idx", choices=[0, 1], type=int, default=0, help="0: KU Binary, 1: KU Multi")
-
+    parser.add_argument("--classes", choices=[0, 1, 2], type=int, default=0, help="0: Forward vs Backward, 1:Cylindrical vs Lumbrical, 2: Forward vs Cylindrical")
+    parser.add_argument("--move_type", choices=[0, 1], type=int, default=0, help="for KU Multi data only; 0: MI, 1: realMove")
+    parser.add_argument("--pre_transform", action="store_true", default=False, help="Whether to transform all data to multiview before training")
     return parser.parse_args()
 
 def build_config(args):
@@ -35,12 +39,31 @@ def build_config(args):
     # Random seed
     config['randSeed'] = 20190821
 
+    # KU Multi Data Config
+    if args.dataset_idx == 1:
+        config['move_type'] = args.move_type
+
+        # Classes to use for classification for KU MultiClass Data
+        if args.classes == 0:
+            config['class_combination'] = [1, 4]
+        elif args.classes == 1:
+            config['class_combination'] = [2, 6]
+        else:
+            config['class_combination'] = [2, 4]
+
     # Network related details
     config['batchSize'] = 16
 
-    config['modelArguments'] = {'nChan': 20, 'nTime': 1000, 'dropoutP': 0.5,
+    if args.dataset_idx == 0:
+        config['modelArguments'] = {'nChan': 20, 'nTime': 1000, 'dropoutP': 0.5,
                                 'nBands': 9, 'm': 32, 'temporalLayer': 'LogVarLayer',
                                 'nClass': 2, 'doWeightNorm': True}
+    else:
+        config['modelArguments'] = {'nChan': 60, 'nTime': 1000, 'dropoutP': 0.5,
+                                    'nBands': 9, 'm': 32, 'temporalLayer': 'LogVarLayer',
+                                    'nClass': 2, 'doWeightNorm': True}
+
+
     # Training related details
     config['modelTrainArguments'] = {
         'stopCondi': {'c': {'Or': {'c1': {'MaxEpoch': {'maxEpochs': 1500, 'varName': 'epoch'}},
@@ -48,6 +71,11 @@ def build_config(args):
         'classes': [0, 1], 'sampler': 'RandomSampler', 'loadBestModel': True,
         'bestVarToCheck': 'valInacc', 'continueAfterEarlystop': True, 'lr': 1e-3}
     config['transformArguments'] = None
+
+    # FilerBank details for transform
+    config['transform'] = {'filterBank': {
+        'filtBank': [[4, 8], [8, 12], [12, 16], [16, 20], [20, 24], [24, 28], [28, 32], [32, 36], [36, 40]], 'fs': 250,
+        'filtType': 'filter'}}
 
     # add some more run specific details.
     config['cv'] = 'trainTest'
@@ -75,7 +103,6 @@ def build_config(args):
     # Output folder:
     # Lets store all the outputs of the given run in folder.
     config['outPath'] = os.path.join(toolboxPath, 'output')
-    config['outPath'] = f"{config['outPath']}_{args.dataset_idx}"
 
     # Network initialization:
     config['pathNetInitState'] = os.path.join(masterPath, 'netInitModels', config['pathNetInitState'] + '.pth')
@@ -190,17 +217,38 @@ def get_multiview_KU_binary_data(data, config, sub):
 
     return trainData, valData, testData
 
-def get_multiview_KU_multi_data():
-    pass
+def get_multiview_KU_multi_data(test_subject, config, args):
+    ALL_SUBJECTS = np.array(range(1,26))
+    train_subjects = ALL_SUBJECTS[ALL_SUBJECTS != test_subject]
+    labels_idx_for_classif = config['class_combination']
+    ALL_LABELS = ld.LoadKUMulti().ALL_LABELS
+    MOVE_TYPE = ld.LoadKUMulti().ALL_MOVE_TYPE[config['move_type']]
+    labels_for_classif = [ALL_LABELS[idx] for idx in labels_idx_for_classif]
+    print(f"Labels chosen for multi-class classification = {labels_for_classif}")
+    print(f"Test Subject {test_subject} \n")
+    load_data = partial(ld.LoadKUMulti().get_multi_subject_data, labels_for_classif,
+                        MOVE_TYPE, args.data_path)
+    x_train, y_train = load_data(train_subjects)
+    x_test, y_test = load_data([test_subject])
+    FS = 250
+    multiview_transform = transforms.filterBank(**config["transform"]["filterBank"])
+    combined_data_train = {'data': x_train, 'label': y_train}
+    combined_data_test = {'data': x_test, 'label': y_test}
+    train_data = eegDataset(dataPath="", dataLabelsPath="", data=combined_data_train, pretransform=args.pre_transform,
+                            transform=multiview_transform)
+    test_data = eegDataset(dataPath="", dataLabelsPath="", data=combined_data_test, pretransform=args.pre_transform,
+                           transform=multiview_transform)
+    return train_data, test_data
 
 def experiment(args):
     config, transform = build_config(args)
 
     # check and Load the data
-    print('Data loading in progress')
-    data = eegDataset(dataPath=config['inDataPath'], dataLabelsPath=config['inLabelPath'],
-                      preloadData=config['preloadData'], transform=transform)
-    print('Data loading finished')
+    if args.dataset_idx == 0:
+        print('Data loading in progress')
+        data = eegDataset(dataPath=config['inDataPath'], dataLabelsPath=config['inLabelPath'],
+                          preloadData=config['preloadData'], transform=transform)
+        print('Data loading finished')
 
     network = networks.FBCNet
 
@@ -219,10 +267,13 @@ def experiment(args):
             torch.save(netInitState, config['pathNetInitState'])
 
     # Find all the subjects to run
-    subs = sorted(set([d[3] for d in data.labels]))
-    nSub = len(subs)
-
-    test_subs = [subs[args.test_sub]]
+    if args.dataset_idx == 0:
+        subs = sorted(set([d[3] for d in data.labels]))
+        nSub = len(subs)
+        test_subs = [subs[args.test_sub]]
+    else:
+        # test_subs = [args.test_sub]
+        test_subs = range(1,26)
 
     # %% Let the training begin
     trainResults = []
@@ -232,7 +283,11 @@ def experiment(args):
     for iSub, sub in enumerate(test_subs):
 
         start = time.time()
-        trainData, valData, testData = get_multiview_KU_binary_data(data, config, sub)
+        if args.dataset_idx == 0:
+            trainData, valData, testData = get_multiview_KU_binary_data(data, config, sub)
+        else:
+            trainData, testData = get_multiview_KU_multi_data(sub, config, args)
+            valData = []
 
         # Call the network for training
         setRandom(config['randSeed'])
@@ -245,15 +300,18 @@ def experiment(args):
 
         # extract the important results.
         trainResults.append([d['results']['trainBest'] for d in model.expDetails])
-        valResults.append([d['results']['valBest'] for d in model.expDetails])
+        # valResults.append([d['results']['valBest'] for d in model.expDetails])
         testResults.append([d['results']['test'] for d in model.expDetails])
 
         # save the results
-        results = {'train:': trainResults[-1], 'val: ': valResults[-1], 'test': testResults[-1]}
+        # results = {'train:': trainResults[-1], 'val: ': valResults[-1], 'test': testResults[-1]}
+        results = {'train:': trainResults[-1], 'test': testResults[-1]}
         dictToCsv(os.path.join(outPathSub, 'results.csv'), results)
 
         # Time taken
         print("Time taken = " + str(time.time() - start))
+
+        del trainData, testData
 
     # %% Extract and write the results to excel file.
 
@@ -262,14 +320,14 @@ def experiment(args):
 
     trainAcc = [[r['acc'] for r in result] for result in trainResults]
     trainAcc = list(map(list, zip(*trainAcc)))
-    valAcc = [[r['acc'] for r in result] for result in valResults]
-    valAcc = list(map(list, zip(*valAcc)))
+    # valAcc = [[r['acc'] for r in result] for result in valResults]
+    # valAcc = list(map(list, zip(*valAcc)))
     testAcc = [[r['acc'] for r in result] for result in testResults]
     testAcc = list(map(list, zip(*testAcc)))
 
     print("Results sequence is train, val , test")
     print(trainAcc)
-    print(valAcc)
+    # print(valAcc)
     print(testAcc)
 
     # append the confusion matrix
@@ -277,35 +335,36 @@ def experiment(args):
     trainCm = list(map(list, zip(*trainCm)))
     trainCm = [np.concatenate(tuple([cm for cm in cms]), axis=1) for cms in trainCm]
 
-    valCm = [[r['cm'] for r in result] for result in valResults]
-    valCm = list(map(list, zip(*valCm)))
-    valCm = [np.concatenate(tuple([cm for cm in cms]), axis=1) for cms in valCm]
+    # valCm = [[r['cm'] for r in result] for result in valResults]
+    # valCm = list(map(list, zip(*valCm)))
+    # valCm = [np.concatenate(tuple([cm for cm in cms]), axis=1) for cms in valCm]
 
     testCm = [[r['cm'] for r in result] for result in testResults]
     testCm = list(map(list, zip(*testCm)))
     testCm = [np.concatenate(tuple([cm for cm in cms]), axis=1) for cms in testCm]
 
     print(trainCm)
-    print(valCm)
+    # print(valCm)
     print(testCm)
     # %% Excel writing
     book = xlwt.Workbook(encoding="utf-8")
     for i, res in enumerate(trainAcc):
         sheet1 = book.add_sheet('exp-' + str(i + 1), cell_overwrite_ok=True)
-        sheet1 = excelAddData(sheet1, [0, 0], ['SubId', 'trainAcc', 'valAcc', 'testAcc'])
-        sheet1 = excelAddData(sheet1, [1, 0], [[sub] for sub in subs])
+        sheet1 = excelAddData(sheet1, [0, 0], ['SubId', 'trainAcc', 'testAcc'])
+        # sheet1 = excelAddData(sheet1, [0, 0], ['SubId', 'trainAcc', 'valAcc', 'testAcc'])
+        sheet1 = excelAddData(sheet1, [1, 0], [[sub] for sub in test_subs])
         sheet1 = excelAddData(sheet1, [1, 1], [[acc] for acc in trainAcc[i]], isNpData=True)
-        sheet1 = excelAddData(sheet1, [1, 2], [[acc] for acc in valAcc[i]], isNpData=True)
+        # sheet1 = excelAddData(sheet1, [1, 2], [[acc] for acc in valAcc[i]], isNpData=True)
         sheet1 = excelAddData(sheet1, [1, 3], [[acc] for acc in testAcc[i]], isNpData=True)
 
         # write the cm
-        for isub, sub in enumerate(subs):
+        for isub, sub in enumerate(test_subs):
             sheet1 = excelAddData(sheet1,
                                   [len(trainAcc[0]) + 5, 0 + isub * len(config['modelTrainArguments']['classes'])], sub)
         sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 6, 0], ['train CM:'])
         sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 7, 0], trainCm[i].tolist(), isNpData=False)
-        sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 11, 0], ['val CM:'])
-        sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 12, 0], valCm[i].tolist(), isNpData=False)
+        # sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 11, 0], ['val CM:'])
+        # sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 12, 0], valCm[i].tolist(), isNpData=False)
         sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 17, 0], ['test CM:'])
         sheet1 = excelAddData(sheet1, [len(trainAcc[0]) + 18, 0], testCm[i].tolist(), isNpData=False)
 
