@@ -1,0 +1,6 @@
+output/
+output/*
+output_0/
+output_0/*
+.idea/
+.idea/*
