@@ -153,7 +153,7 @@ class filterBank(object):
     def __call__(self, data1):
 
         data = copy.deepcopy(data1)
-        d = data['data']
+        d = data['data'] #single trial Nchannels x Nsamples
 
         # initialize output
         out  = np.zeros([*d.shape, len(self.filtBank)])
@@ -167,7 +167,7 @@ class filterBank(object):
         if len(self.filtBank) <= 1:
             out =np.squeeze(out, axis = 2)
 
-        data['data'] = torch.from_numpy(out).float()
+        data['data'] = torch.from_numpy(out).float() #Nchannels x Nsamples x Nbands - single trial
         return data
 
 class filterBankFIR(object):

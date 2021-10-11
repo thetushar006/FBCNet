@@ -461,57 +461,58 @@ def fetchData(dataFolder, datasetId = 0):
 
     '''
     print('fetch ssettins: ', dataFolder, datasetId)
-    oDataFolder = 'originalData'
+    oDataFolder = ''
     rawMatFolder = 'rawMat'
     rawPythonFolder = 'rawPython'
     multiviewPythonFolder = 'multiviewPython'
     
     # check that all original data exists
-    if not os.path.exists(os.path.join(dataFolder, oDataFolder)):
-        if datasetId ==0:
-            raise ValueError('The BCI-IV-2a original dataset doesn\'t exist at path: ' + 
-                             os.path.join(dataFolder, oDataFolder) + 
-                             ' Please download and copy the extracted dataset at the above path '+
-                             ' More details about how to download this data can be found in the instructions.txt file')
-        elif datasetId ==1:
-            print('The Korea dataset doesn\'t exist at path: '+
-                  os.path.join(dataFolder, oDataFolder) + 
-                  ' So it will be automatically downloaded over FTP server '+
-                  'Please make sure that you have ~60GB Internet bandwidth and 80 GB space ' +
-                  'the data size is ~60GB so its going to take a while ' +
-                  'Meanwhile you can take a nap!')
-    else:
-        oDataLen = len([name for name in os.listdir(os.path.join(dataFolder, oDataFolder)) 
-                        if os.path.isfile(os.path.join(dataFolder, oDataFolder, name))])
-        if datasetId ==0 and oDataLen <36:
-            raise ValueError('The BCI-IV-2a dataset at path: ' + 
-                             os.path.join(dataFolder, oDataFolder) + 
-                             ' is not complete. Please download and copy the extracted dataset at the above path '+
-                             'The dataset should contain 36 files (18 .mat + 18 .gdf)'
-                             ' More details about how to download this data can be found in the instructions.txt file')
-        elif datasetId ==1 and oDataLen <108:
-            print('The Korea dataset at path: '+
-                  os.path.join(dataFolder, oDataFolder) + 
-                  ' is incomplete. So it will be automatically downloaded over FTP server'+
-                  ' Please make sure that you have ~60GB Internet bandwidth and 80 GB space' +
-                  ' the data size is ~60GB so its going to take a while' +
-                  ' Meanwhile you can take a nap!')
-            parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
+    # if not os.path.exists(dataFolder):
+    #     if datasetId ==0:
+    #         raise ValueError('The BCI-IV-2a original dataset doesn\'t exist at path: ' +
+    #                          os.path.join(dataFolder, oDataFolder) +
+    #                          ' Please download and copy the extracted dataset at the above path '+
+    #                          ' More details about how to download this data can be found in the instructions.txt file')
+    #     elif datasetId ==1:
+    #         print('The Korea dataset doesn\'t exist at path: '+
+    #               os.path.join(dataFolder, oDataFolder) +
+    #               ' So it will be automatically downloaded over FTP server '+
+    #               'Please make sure that you have ~60GB Internet bandwidth and 80 GB space ' +
+    #               'the data size is ~60GB so its going to take a while ' +
+    #               'Meanwhile you can take a nap!')
+    # else:
+    #
+    #     oDataLen = len([name for name in os.listdir(dataFolder)
+    #                     if os.path.isfile(os.path.join(dataFolder, name))])
+    #     if datasetId ==0 and oDataLen <36:
+    #         raise ValueError('The BCI-IV-2a dataset at path: ' +
+    #                          os.path.join(dataFolder, oDataFolder) +
+    #                          ' is not complete. Please download and copy the extracted dataset at the above path '+
+    #                          'The dataset should contain 36 files (18 .mat + 18 .gdf)'
+    #                          ' More details about how to download this data can be found in the instructions.txt file')
+    #     elif datasetId ==1 and oDataLen <108:
+    #         print('The Korea dataset at path: '+
+    #               os.path.join(dataFolder, oDataFolder) +
+    #               ' is incomplete. So it will be automatically downloaded over FTP server'+
+    #               ' Please make sure that you have ~60GB Internet bandwidth and 80 GB space' +
+    #               ' the data size is ~60GB so its going to take a while' +
+    #               ' Meanwhile you can take a nap!')
+    #         parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
 
         
             
    # Check if the processed mat data exists:
-    if not os.path.exists(os.path.join(dataFolder, rawMatFolder)):
-        print('Appears that the raw data exists but its not parsed yet. Starting the data parsing ')
-        if datasetId ==0:
-            parseBci42aDataset( os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
-        elif datasetId ==1:
-            parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
+   #  if not os.path.exists(os.path.join(dataFolder, rawMatFolder)):
+   #      print('Appears that the raw data exists but its not parsed yet. Starting the data parsing ')
+   #      if datasetId ==0:
+   #          parseBci42aDataset( os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
+   #      elif datasetId ==1:
+   #          parseKoreaDataset(os.path.join(dataFolder, oDataFolder), os.path.join(dataFolder, rawMatFolder))
 
     # Check if the processed python data exists:
-    if not os.path.exists(os.path.join(dataFolder, rawPythonFolder, 'dataLabels.csv')):
-        print('Appears that the parsed mat data exists but its not converted to eegdataset yet. Starting this processing')
-        matToPython( os.path.join(dataFolder, rawMatFolder), os.path.join(dataFolder, rawPythonFolder))
+    # if not os.path.exists(os.path.join(dataFolder, rawPythonFolder, 'dataLabels.csv')):
+    #     print('Appears that the parsed mat data exists but its not converted to eegdataset yet. Starting this processing')
+    #     matToPython( os.path.join(dataFolder, rawMatFolder), os.path.join(dataFolder, rawPythonFolder))
     
     # Check if the multi-view python data exists:
     if not os.path.exists(os.path.join(dataFolder, multiviewPythonFolder , 'dataLabels.csv')):

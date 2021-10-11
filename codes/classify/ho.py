@@ -87,7 +87,7 @@ def ho(datasetId = None, network = None, nGPU = None, subTorun=None):
     #%% Define data path things here. Do it once and forget it!
     # Input data base folder:
     toolboxPath = os.path.dirname(masterPath)
-    config['inDataPath'] = os.path.join(toolboxPath, 'data')
+    config['inDataPath'] = "D:\Data\KU_Dataset\BCIdataset\DB_mat" #os.path.join(toolboxPath, 'data')
     
     # Input data datasetId folders
     if 'FBCNet' in config['network']:
@@ -96,7 +96,7 @@ def ho(datasetId = None, network = None, nGPU = None, subTorun=None):
         modeInFol = 'rawPython'
 
     # set final input location
-    config['inDataPath'] = os.path.join(config['inDataPath'], datasets[datasetId], modeInFol)
+    config['inDataPath'] = os.path.join(config['inDataPath'], modeInFol)
 
     # Path to the input data labels file
     config['inLabelPath'] = os.path.join(config['inDataPath'], 'dataLabels.csv')
